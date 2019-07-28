@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "assert": "^2.0.0",
+    "mongodb": "^3.3.0-beta2",
     "puppeteer": "^1.19.0"
   }
 }
