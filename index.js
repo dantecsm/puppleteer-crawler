@@ -2,13 +2,34 @@ const fs = require('fs');
 const assert = require('assert');
 const puppeteer = require('puppeteer');
 
-const outputFile = 'danmakuList.json'
+const retryLog = 'RetryData.json'
 const errorLog = 'ErrorData.json'
 
 var arr = []
 var err = []
-var begin = 2019
+var begin = 0
 var total = 283834
+
+
+
+
+// 初始化 mongoDB
+var MongoClient = require('mongodb').MongoClient;
+var url = "mongodb://localhost:27017/";
+
+MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+  if (err) throw err;
+  console.log("mongoDB 数据库已连接!");
+  db.close();
+
+  // 启动爬虫
+  scrape().then((value) => {
+    console.log('全部网站数据获取成功');
+  });
+});
+
+
+
 
 var scrape = async () => {
   const browser = await puppeteer.launch({
@@ -16,7 +37,11 @@ var scrape = async () => {
     headless: false
   });
   const page = await browser.newPage();
+  // 第一次爬
   const pageURL = createPageURL(total)
+  // 错误重试
+  // errorData 拷贝到 retryData 后清空，再根据 retryData 爬取数据
+  // const pageURL = recreatePageURL()
 
   await page.goto(pageURL[0]);
 
@@ -43,17 +68,14 @@ var scrape = async () => {
 
       assert(result !== null)
 
-      arr = arr.concat(result)
-
-      if(start % 100 === 0 || pageURL.length - start < 100) {
-        fs.writeFileSync(outputFile, JSON.stringify(arr))
-      }
+      // 插入数据
+      insertDB(result)
 
       console.log(`${start+1} / ${pageURL.length}: ${decodeURI(pageURL[start])} 数据抽离完成！`)
     } catch (e) {
       err.push({url: decodeURI(pageURL[start]), reason: '解析失效', error: e})
 
-      fs.writeFileSync(errorLog, JSON.stringify(err))
+      fs.writeFileSync(retryLog, JSON.stringify(err))
 
       console.log(decodeURI(pageURL[start]) + ' 抽取错误因为数据误解析--------------------------------------------------------------')
       console.log('---------------------------------------------------------------------------------------------------------------')
@@ -64,9 +86,23 @@ var scrape = async () => {
   return 'ok';
 };
 
-scrape().then((value) => {
-  console.log('全部网站数据获取成功');
-});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /* util function */
@@ -110,4 +146,24 @@ function createPageURL(size = 20000) {
   }
 
   return pageURL
+}
+
+function recreatePageURL() {
+  fs.writeFileSync(retryLog, JSON.stringify(fs.readFileSync(errorLog, 'utf8')))
+  fs.writeFileSync(errorLog, '')
+
+  var pageURL = JSON.parse(fs.readFileSync(retryLog)).map(obj => obj.url)
+  console.log('一共需要爬取' + pageURL.length + '页')
+  return pageURL
+}
+
+function insertDB(objArr) {
+    MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+      if (err) throw err;
+      var dbo = db.db("bili");
+      dbo.collection("videoMsg").insertMany(objArr, function(err, res) {
+          if (err) throw err;
+          db.close();
+      });
+  });
 }

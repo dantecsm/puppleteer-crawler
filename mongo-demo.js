@@ -5,7 +5,7 @@ var url = "mongodb://localhost:27017/";
 // 连接数据库
 MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
   if (err) throw err;
-  console.log("数据库已创建!");
+  console.log("mongoDB 数据库已连接!");
   db.close();
 });
 
@@ -13,11 +13,10 @@ MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
 MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
     if (err) throw err;
     var dbo = db.db("bili");
-    var myobj = { name: "菜鸟教程", url: "www.runoob" };
+    var myobj = { name: "xxxx", url: "yyyy" };
 
     dbo.collection("videoMsg").insertOne(myobj, function(err, res) {
         if (err) throw err;
-        console.log("文档插入成功");
         db.close();
     });
 });
